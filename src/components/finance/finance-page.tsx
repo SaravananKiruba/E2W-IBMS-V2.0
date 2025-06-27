@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useParams } from 'next/navigation'
 import { useFinanceData, useCreateTransaction, useUpdateTransaction, useDeleteTransaction } from '@/hooks/use-finance'
 import { DataTable } from '@/components/ui/data-table'
 import { Button } from '@/components/ui/button'
@@ -21,11 +22,9 @@ import { TransactionForm } from './transaction-form'
 import { FinanceReports } from './finance-reports'
 import { PaymentTracker } from './payment-tracker'
 
-interface FinancePageProps {
-  tenant: string
-}
-
-export function FinancePage({ tenant }: FinancePageProps) {
+export function FinancePage() {
+  const params = useParams()
+  const tenant = params.tenant as string
   const [searchTerm, setSearchTerm] = useState('')
   const [typeFilter, setTypeFilter] = useState('all')
   const [dateRange, setDateRange] = useState({ from: '', to: '' })

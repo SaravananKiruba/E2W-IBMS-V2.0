@@ -1,6 +1,7 @@
 'use client'
 
 import { useState } from 'react'
+import { useParams } from 'next/navigation'
 import { useOrders, useCreateOrder, useUpdateOrder, useDeleteOrder } from '@/hooks/use-orders'
 import { DataTable } from '@/components/ui/data-table'
 import { Button } from '@/components/ui/button'
@@ -15,11 +16,9 @@ import { OrderForm } from './order-form'
 import { OrderDetails } from './order-details'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-interface OrdersPageProps {
-  tenant: string
-}
-
-export function OrdersPage({ tenant }: OrdersPageProps) {
+export function OrdersPage() {
+  const params = useParams()
+  const tenant = params.tenant as string
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
