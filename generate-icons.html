@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Generate IBMS Icons</title>
+</head>
+<body>
+    <h2>IBMS Icon Generator</h2>
+    <canvas id="canvas" style="border: 1px solid #ccc;"></canvas>
+    <div>
+        <button onclick="generateIcons()">Generate All Icons</button>
+    </div>
+    <div id="downloads"></div>
+
+    <script>
+        function createIcon(size) {
+            const canvas = document.getElementById('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Clear canvas
+            ctx.clearRect(0, 0, size, size);
+            
+            // Draw rounded rectangle background
+            const radius = size / 8;
+            ctx.fillStyle = '#1e40af';
+            ctx.beginPath();
+            ctx.roundRect(0, 0, size, size, radius);
+            ctx.fill();
+            
+            // Draw text
+            ctx.fillStyle = 'white';
+            ctx.font = `bold ${size / 4}px Arial, sans-serif`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText('IBMS', size / 2, size / 2);
+            
+            return canvas.toDataURL('image/png');
+        }
+        
+        function downloadIcon(dataUrl, filename) {
+            const link = document.createElement('a');
+            link.download = filename;
+            link.href = dataUrl;
+            link.click();
+        }
+        
+        function generateIcons() {
+            const sizes = [72, 96, 128, 144, 152, 192, 384, 512];
+            const downloads = document.getElementById('downloads');
+            downloads.innerHTML = '';
+            
+            sizes.forEach(size => {
+                const dataUrl = createIcon(size);
+                const filename = `icon-${size}x${size}.png`;
+                
+                // Create download link
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = filename;
+                link.textContent = `Download ${filename}`;
+                link.style.display = 'block';
+                link.style.margin = '5px 0';
+                downloads.appendChild(link);
+                
+                // Auto-download
+                setTimeout(() => {
+                    link.click();
+                }, size); // Stagger downloads
+            });
+        }
+        
+        // Polyfill for roundRect if not available
+        if (!CanvasRenderingContext2D.prototype.roundRect) {
+            CanvasRenderingContext2D.prototype.roundRect = function(x, y, width, height, radius) {
+                this.moveTo(x + radius, y);
+                this.lineTo(x + width - radius, y);
+                this.quadraticCurveTo(x + width, y, x + width, y + radius);
+                this.lineTo(x + width, y + height - radius);
+                this.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+                this.lineTo(x + radius, y + height);
+                this.quadraticCurveTo(x, y + height, x, y + height - radius);
+                this.lineTo(x, y + radius);
+                this.quadraticCurveTo(x, y, x + radius, y);
+                this.closePath();
+            };
+        }
+    </script>
+</body>
+</html>
