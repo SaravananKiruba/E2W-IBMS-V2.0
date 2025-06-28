@@ -11,6 +11,7 @@ import {
   ChartBarIcon,
   CogIcon,
   DocumentTextIcon,
+  ShieldCheckIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -24,6 +25,7 @@ const navigation = [
   { name: 'Finance', href: '/finance', icon: CurrencyDollarIcon },
   { name: 'Reports', href: '/reports', icon: ChartBarIcon },
   { name: 'Rates', href: '/rates', icon: DocumentTextIcon },
+  { name: 'Security', href: '/security', icon: ShieldCheckIcon },
   { name: 'Settings', href: '/settings', icon: CogIcon },
 ]
 

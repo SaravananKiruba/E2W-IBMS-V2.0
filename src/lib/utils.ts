@@ -194,7 +194,296 @@ export function getErrorMessage(error: unknown): string {
   return 'An unexpected error occurred'
 }
 
-// Array utilities
+// Advanced Indian Business Utilities
+export function calculateAdvancedGST(amount: number, gstRate: number, includesCess = false, cessRate = 0): {
+  baseAmount: number
+  cgst: number
+  sgst: number
+  igst: number
+  cess: number
+  totalGst: number
+  totalAmount: number
+} {
+  const baseAmount = amount / (1 + (gstRate / 100) + (includesCess ? cessRate / 100 : 0))
+  const gstAmount = baseAmount * (gstRate / 100)
+  const cessAmount = includesCess ? baseAmount * (cessRate / 100) : 0
+  
+  // For intra-state transactions
+  const cgst = gstAmount / 2
+  const sgst = gstAmount / 2
+  // For inter-state transactions (use IGST instead of CGST+SGST)
+  const igst = gstAmount
+
+  return {
+    baseAmount: Math.round(baseAmount * 100) / 100,
+    cgst: Math.round(cgst * 100) / 100,
+    sgst: Math.round(sgst * 100) / 100,
+    igst: Math.round(igst * 100) / 100,
+    cess: Math.round(cessAmount * 100) / 100,
+    totalGst: Math.round(gstAmount * 100) / 100,
+    totalAmount: Math.round((baseAmount + gstAmount + cessAmount) * 100) / 100
+  }
+}
+
+export function validateIndianPincode(pincode: string): boolean {
+  const pincodeRegex = /^[1-9][0-9]{5}$/
+  return pincodeRegex.test(pincode)
+}
+
+export function validateIFSC(ifsc: string): boolean {
+  const ifscRegex = /^[A-Z]{4}0[A-Z0-9]{6}$/
+  return ifscRegex.test(ifsc)
+}
+
+export function validateUPI(upi: string): boolean {
+  const upiRegex = /^[a-zA-Z0-9.\-_]{2,256}@[a-zA-Z]{2,64}$/
+  return upiRegex.test(upi)
+}
+
+export function validateTAN(tan: string): boolean {
+  const tanRegex = /^[A-Z]{4}[0-9]{5}[A-Z]{1}$/
+  return tanRegex.test(tan)
+}
+
+export function formatIndianCurrency(amount: number): string {
+  return new Intl.NumberFormat('en-IN', {
+    style: 'currency',
+    currency: 'INR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount)
+}
+
+export function getGSTStateCode(stateName: string): string {
+  const stateCodes: { [key: string]: string } = {
+    'andhra pradesh': '37',
+    'arunachal pradesh': '12',
+    'assam': '18',
+    'bihar': '10',
+    'chhattisgarh': '22',
+    'goa': '30',
+    'gujarat': '24',
+    'haryana': '06',
+    'himachal pradesh': '02',
+    'jharkhand': '20',
+    'karnataka': '29',
+    'kerala': '32',
+    'madhya pradesh': '23',
+    'maharashtra': '27',
+    'manipur': '14',
+    'meghalaya': '17',
+    'mizoram': '15',
+    'nagaland': '13',
+    'odisha': '21',
+    'punjab': '03',
+    'rajasthan': '08',
+    'sikkim': '11',
+    'tamil nadu': '33',
+    'telangana': '36',
+    'tripura': '16',
+    'uttar pradesh': '09',
+    'uttarakhand': '05',
+    'west bengal': '19',
+    'andaman and nicobar islands': '35',
+    'chandigarh': '04',
+    'dadra and nagar haveli and daman and diu': '26',
+    'delhi': '07',
+    'jammu and kashmir': '01',
+    'ladakh': '38',
+    'lakshadweep': '31',
+    'puducherry': '34'
+  }
+  return stateCodes[stateName.toLowerCase()] || ''
+}
+
+// Performance and Analytics Utilities
+export function measurePerformance<T>(
+  fn: () => T,
+  label?: string
+): { result: T; duration: number } {
+  const start = performance.now()
+  const result = fn()
+  const duration = performance.now() - start
+  
+  if (label) {
+    console.log(`[Performance] ${label}: ${duration.toFixed(2)}ms`)
+  }
+  
+  return { result, duration }
+}
+
+export async function measureAsyncPerformance<T>(
+  fn: () => Promise<T>,
+  label?: string
+): Promise<{ result: T; duration: number }> {
+  const start = performance.now()
+  const result = await fn()
+  const duration = performance.now() - start
+  
+  if (label) {
+    console.log(`[Performance] ${label}: ${duration.toFixed(2)}ms`)
+  }
+  
+  return { result, duration }
+}
+
+export function throttle<T extends (...args: any[]) => any>(
+  func: T,
+  limit: number
+): (...args: Parameters<T>) => void {
+  let inThrottle: boolean
+  return function(this: any, ...args: Parameters<T>) {
+    if (!inThrottle) {
+      func.apply(this, args)
+      inThrottle = true
+      setTimeout(() => inThrottle = false, limit)
+    }
+  }
+}
+
+export function memoize<T extends (...args: any[]) => any>(
+  fn: T,
+  getKey?: (...args: Parameters<T>) => string
+): T {
+  const cache = new Map()
+  
+  return ((...args: Parameters<T>) => {
+    const key = getKey ? getKey(...args) : JSON.stringify(args)
+    
+    if (cache.has(key)) {
+      return cache.get(key)
+    }
+    
+    const result = fn(...args)
+    cache.set(key, result)
+    return result
+  }) as T
+}
+
+// Advanced Date Utilities
+export function getFinancialYear(date = new Date()): { start: Date; end: Date; label: string } {
+  const year = date.getFullYear()
+  const month = date.getMonth()
+  
+  let fyStart: Date
+  let fyEnd: Date
+  
+  if (month >= 3) { // April to March
+    fyStart = new Date(year, 3, 1) // April 1st
+    fyEnd = new Date(year + 1, 2, 31) // March 31st next year
+  } else {
+    fyStart = new Date(year - 1, 3, 1) // April 1st previous year
+    fyEnd = new Date(year, 2, 31) // March 31st current year
+  }
+  
+  return {
+    start: fyStart,
+    end: fyEnd,
+    label: `FY ${fyStart.getFullYear()}-${fyEnd.getFullYear().toString().slice(-2)}`
+  }
+}
+
+export function getQuarter(date = new Date()): { quarter: number; label: string; start: Date; end: Date } {
+  const month = date.getMonth()
+  const year = date.getFullYear()
+  
+  let quarter: number
+  let start: Date
+  let end: Date
+  
+  if (month >= 3 && month <= 5) { // Apr-Jun
+    quarter = 1
+    start = new Date(year, 3, 1)
+    end = new Date(year, 5, 30)
+  } else if (month >= 6 && month <= 8) { // Jul-Sep
+    quarter = 2
+    start = new Date(year, 6, 1)
+    end = new Date(year, 8, 30)
+  } else if (month >= 9 && month <= 11) { // Oct-Dec
+    quarter = 3
+    start = new Date(year, 9, 1)
+    end = new Date(year, 11, 31)
+  } else { // Jan-Mar
+    quarter = 4
+    start = new Date(month <= 2 ? year - 1 : year, 0, 1)
+    end = new Date(month <= 2 ? year : year + 1, 2, 31)
+  }
+  
+  return {
+    quarter,
+    label: `Q${quarter}`,
+    start,
+    end
+  }
+}
+
+export function isWorkingDay(date: Date, holidays: Date[] = []): boolean {
+  const day = date.getDay()
+  // Monday = 1, Sunday = 0
+  if (day === 0 || day === 6) return false // Weekend
+  
+  // Check against provided holidays
+  return !holidays.some(holiday => 
+    holiday.getDate() === date.getDate() &&
+    holiday.getMonth() === date.getMonth() &&
+    holiday.getFullYear() === date.getFullYear()
+  )
+}
+
+export function addWorkingDays(startDate: Date, days: number, holidays: Date[] = []): Date {
+  let currentDate = new Date(startDate)
+  let addedDays = 0
+  
+  while (addedDays < days) {
+    currentDate.setDate(currentDate.getDate() + 1)
+    if (isWorkingDay(currentDate, holidays)) {
+      addedDays++
+    }
+  }
+  
+  return currentDate
+}
+
+// Business Logic Utilities
+export function calculateServiceCharges(amount: number, percentage: number, min = 0, max = Infinity): number {
+  const charges = (amount * percentage) / 100
+  return Math.min(Math.max(charges, min), max)
+}
+
+export function calculateCompoundInterest(
+  principal: number,
+  rate: number,
+  time: number,
+  compoundFrequency = 1
+): { amount: number; interest: number } {
+  const amount = principal * Math.pow(1 + (rate / 100) / compoundFrequency, compoundFrequency * time)
+  const interest = amount - principal
+  
+  return {
+    amount: Math.round(amount * 100) / 100,
+    interest: Math.round(interest * 100) / 100
+  }
+}
+
+export function calculateEMI(principal: number, rate: number, months: number): {
+  emi: number
+  totalAmount: number
+  totalInterest: number
+} {
+  const monthlyRate = rate / 100 / 12
+  const emi = (principal * monthlyRate * Math.pow(1 + monthlyRate, months)) / 
+               (Math.pow(1 + monthlyRate, months) - 1)
+  const totalAmount = emi * months
+  const totalInterest = totalAmount - principal
+  
+  return {
+    emi: Math.round(emi * 100) / 100,
+    totalAmount: Math.round(totalAmount * 100) / 100,
+    totalInterest: Math.round(totalInterest * 100) / 100
+  }
+}
+
+// Data Processing Utilities
 export function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
   return array.reduce((groups, item) => {
     const group = String(item[key])
@@ -202,4 +491,181 @@ export function groupBy<T>(array: T[], key: keyof T): Record<string, T[]> {
     groups[group].push(item)
     return groups
   }, {} as Record<string, T[]>)
+}
+
+export function sortBy<T>(array: T[], key: keyof T, direction: 'asc' | 'desc' = 'asc'): T[] {
+  return [...array].sort((a, b) => {
+    const aVal = a[key]
+    const bVal = b[key]
+    
+    if (aVal < bVal) return direction === 'asc' ? -1 : 1
+    if (aVal > bVal) return direction === 'asc' ? 1 : -1
+    return 0
+  })
+}
+
+export function filterBy<T>(array: T[], filters: Partial<Record<keyof T, any>>): T[] {
+  return array.filter(item => {
+    return Object.entries(filters).every(([key, value]) => {
+      if (value === undefined || value === '') return true
+      const itemValue = item[key as keyof T]
+      
+      if (typeof value === 'string' && typeof itemValue === 'string') {
+        return itemValue.toLowerCase().includes(value.toLowerCase())
+      }
+      
+      return itemValue === value
+    })
+  })
+}
+
+export function paginate<T>(array: T[], page: number, pageSize: number): {
+  data: T[]
+  total: number
+  pages: number
+  hasNext: boolean
+  hasPrev: boolean
+} {
+  const total = array.length
+  const pages = Math.ceil(total / pageSize)
+  const start = (page - 1) * pageSize
+  const end = start + pageSize
+  const data = array.slice(start, end)
+  
+  return {
+    data,
+    total,
+    pages,
+    hasNext: page < pages,
+    hasPrev: page > 1
+  }
+}
+
+// Chart and Analytics Utilities
+export function generateChartColors(count: number): string[] {
+  const baseColors = [
+    '#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6',
+    '#06b6d4', '#84cc16', '#f97316', '#ec4899', '#6366f1'
+  ]
+  
+  if (count <= baseColors.length) {
+    return baseColors.slice(0, count)
+  }
+  
+  // Generate additional colors using HSL
+  const colors = [...baseColors]
+  for (let i = baseColors.length; i < count; i++) {
+    const hue = (i * 360 / count) % 360
+    colors.push(`hsl(${hue}, 70%, 50%)`)
+  }
+  
+  return colors
+}
+
+export function generateTrendData(data: number[]): {
+  trend: 'up' | 'down' | 'stable'
+  percentage: number
+  direction: number
+} {
+  if (data.length < 2) {
+    return { trend: 'stable', percentage: 0, direction: 0 }
+  }
+  
+  const first = data[0]
+  const last = data[data.length - 1]
+  const percentage = ((last - first) / first) * 100
+  
+  let trend: 'up' | 'down' | 'stable'
+  if (Math.abs(percentage) < 1) {
+    trend = 'stable'
+  } else if (percentage > 0) {
+    trend = 'up'
+  } else {
+    trend = 'down'
+  }
+  
+  return {
+    trend,
+    percentage: Math.abs(Math.round(percentage * 100) / 100),
+    direction: percentage
+  }
+}
+
+// Export and Import Utilities
+export function exportToCSV<T>(data: T[], filename: string, headers?: string[]): void {
+  if (!data.length) return
+  
+  const csvHeaders = headers || Object.keys(data[0] as any)
+  const csvContent = [
+    csvHeaders.join(','),
+    ...data.map(row => 
+      csvHeaders.map(header => {
+        const value = (row as any)[header]
+        return typeof value === 'string' ? `"${value.replace(/"/g, '""')}"` : value
+      }).join(',')
+    )
+  ].join('\n')
+  
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `${filename}.csv`
+  link.click()
+}
+
+export function exportToJSON<T>(data: T, filename: string): void {
+  const jsonContent = JSON.stringify(data, null, 2)
+  const blob = new Blob([jsonContent], { type: 'application/json' })
+  const link = document.createElement('a')
+  link.href = URL.createObjectURL(blob)
+  link.download = `${filename}.json`
+  link.click()
+}
+
+export function parseCSV(csvContent: string): string[][] {
+  const lines = csvContent.split('\n')
+  const result: string[][] = []
+  
+  for (const line of lines) {
+    if (line.trim()) {
+      const fields = line.split(',').map(field => 
+        field.trim().replace(/^"(.*)"$/, '$1').replace(/""/g, '"')
+      )
+      result.push(fields)
+    }
+  }
+  
+  return result
+}
+
+// Notification and Communication Utilities
+export function formatNotificationText(template: string, data: Record<string, any>): string {
+  return template.replace(/\{(\w+)\}/g, (match, key) => {
+    return data[key] !== undefined ? String(data[key]) : match
+  })
+}
+
+export function generateQRCodeUrl(text: string, size = 200): string {
+  return `https://api.qrserver.com/v1/create-qr-code/?size=${size}x${size}&data=${encodeURIComponent(text)}`
+}
+
+export function copyToClipboard(text: string): Promise<boolean> {
+  if (navigator.clipboard) {
+    return navigator.clipboard.writeText(text).then(() => true).catch(() => false)
+  }
+  
+  // Fallback for older browsers
+  const textArea = document.createElement('textarea')
+  textArea.value = text
+  document.body.appendChild(textArea)
+  textArea.select()
+  
+  try {
+    const successful = document.execCommand('copy')
+    document.body.removeChild(textArea)
+    return Promise.resolve(successful)
+  } catch (err) {
+    document.body.removeChild(textArea)
+    return Promise.resolve(false)
+  }
 }
