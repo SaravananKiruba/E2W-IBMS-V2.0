@@ -265,3 +265,6 @@ export const financeApi = {
   getReports: (type: string, params?: any) =>
     apiClient.get(`/finance/reports/${type}`, params),
 }
+
+// Export the main API client as 'api' for convenience
+export const api = apiClient

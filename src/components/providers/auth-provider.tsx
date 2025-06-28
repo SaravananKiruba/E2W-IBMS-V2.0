@@ -3,13 +3,14 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import Cookies from 'js-cookie'
+import { api } from '@/lib/api'
 
 interface User {
   id: string
   name: string
   email: string
   role: string
-  tenantId: string
+  tenant: string
 }
 
 interface AuthContextType {
@@ -29,7 +30,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     const token = Cookies.get('token')
     if (token) {
-      // Verify token and get user data
       fetchUser(token)
     } else {
       setIsLoading(false)
@@ -38,31 +38,39 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const fetchUser = async (token: string) => {
     try {
-      // API call to verify token and get user
-      // const response = await api.get('/auth/me', { headers: { Authorization: `Bearer ${token}` }})
-      // setUser(response.data.user)
+      const response = await api.get('/auth/me')
+      setUser(response.data.user)
       setIsLoading(false)
     } catch (error) {
       Cookies.remove('token')
+      Cookies.remove('tenant')
       setIsLoading(false)
     }
   }
 
   const login = async (email: string, password: string) => {
     try {
-      // API call to login
-      // const response = await api.post('/auth/login', { email, password })
-      // const { token, user } = response.data
-      // Cookies.set('token', token, { expires: 7 })
-      // setUser(user)
-      // router.push(`/${user.tenantId}/dashboard`)
-    } catch (error) {
-      throw error
+      let tenant = Cookies.get('tenant')
+      if (!tenant) {
+        tenant = 'test' // Default tenant
+        Cookies.set('tenant', tenant, { expires: 7 })
+      }
+      
+      const response = await api.post('/auth/login', { email, password })
+      const { user, tokens } = response.data
+      
+      Cookies.set('token', tokens.accessToken, { expires: 7 })
+      setUser(user)
+      
+      router.push(`/${tenant}/dashboard`)
+    } catch (error: any) {
+      throw new Error(error.response?.data?.message || 'Login failed')
     }
   }
 
   const logout = () => {
     Cookies.remove('token')
+    Cookies.remove('tenant')
     setUser(null)
     router.push('/login')
   }

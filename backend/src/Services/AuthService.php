@@ -16,61 +16,37 @@ class AuthService
     public function __construct()
     {
         $this->jwtSecret = $_ENV['JWT_SECRET'] ?? 'your-secret-key-change-this';
-        $this->jwtExpiry = (int)($_ENV['JWT_EXPIRY'] ?? 3600); // 1 hour
+        $this->jwtExpiry = (int)($_ENV['JWT_EXPIRATION'] ?? 3600); // 1 hour
         $this->refreshExpiry = (int)($_ENV['JWT_REFRESH_EXPIRY'] ?? 86400 * 7); // 7 days
     }
 
-    public function authenticate(string $tenant, string $username, string $password): ?array
+    public function authenticate(string $tenant, string $email, string $password): ?array
     {
         $db = DatabaseManager::getConnection($tenant);
         
-        // For now, we'll use a simple user table structure
-        // In production, this should be properly hashed passwords
+        // Check if user exists with the given email
         $sql = "
-            SELECT * FROM user_table 
-            WHERE username = :username 
-            AND password = MD5(:password)
+            SELECT id, name, email, password, role, status, tenant_id
+            FROM users 
+            WHERE email = :email 
             AND status = 'active'
             LIMIT 1
         ";
         
         $stmt = $db->prepare($sql);
-        $stmt->execute([
-            ':username' => $username,
-            ':password' => $password
-        ]);
-        
+        $stmt->execute([':email' => $email]);
         $user = $stmt->fetch();
         
-        if (!$user) {
-            // Try with email as username
-            $sql = "
-                SELECT * FROM user_table 
-                WHERE email = :email 
-                AND password = MD5(:password)
-                AND status = 'active'
-                LIMIT 1
-            ";
-            
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':email' => $username,
-                ':password' => $password
-            ]);
-            
-            $user = $stmt->fetch();
-        }
-        
-        if (!$user) {
+        if (!$user || !password_verify($password, $user['password'])) {
             return null;
         }
         
         // Generate tokens
         $payload = [
             'user_id' => $user['id'],
-            'username' => $user['username'],
+            'name' => $user['name'],
             'email' => $user['email'],
-            'role' => $user['role'] ?? 'user',
+            'role' => $user['role'],
             'tenant' => $tenant,
             'iat' => time(),
             'exp' => time() + $this->jwtExpiry
@@ -88,20 +64,15 @@ class AuthService
         
         $refreshToken = JWT::encode($refreshPayload, $this->jwtSecret, 'HS256');
         
-        // Store refresh token
-        $this->storeRefreshToken($tenant, $user['id'], $refreshToken);
-        
         // Update last login
         $this->updateLastLogin($tenant, $user['id']);
         
         return [
             'user' => [
                 'id' => $user['id'],
-                'username' => $user['username'],
+                'name' => $user['name'],
                 'email' => $user['email'],
-                'firstName' => $user['first_name'] ?? '',
-                'lastName' => $user['last_name'] ?? '',
-                'role' => $user['role'] ?? 'user',
+                'role' => $user['role'],
                 'tenant' => $tenant
             ],
             'tokens' => [
@@ -112,77 +83,134 @@ class AuthService
         ];
     }
 
-    public function createUser(string $tenant, array $data): int
+    public function register(string $tenant, array $data): ?array
     {
         $db = DatabaseManager::getConnection($tenant);
         
         // Check if user already exists
-        $checkSql = "SELECT id FROM user_table WHERE username = :username OR email = :email";
+        $checkSql = "SELECT id FROM users WHERE email = :email";
         $checkStmt = $db->prepare($checkSql);
-        $checkStmt->execute([
-            ':username' => $data['username'],
-            ':email' => $data['email']
-        ]);
+        $checkStmt->execute([':email' => $data['email']]);
         
         if ($checkStmt->fetch()) {
-            throw new \Exception('User already exists with this username or email');
+            throw new \Exception('User already exists with this email');
         }
         
+        // Hash password
+        $hashedPassword = password_hash($data['password'], PASSWORD_DEFAULT);
+        
         $sql = "
-            INSERT INTO user_table (
-                username,
+            INSERT INTO users (
+                name,
                 email,
                 password,
-                first_name,
-                last_name,
                 role,
+                tenant_id,
                 status,
                 created_at
             ) VALUES (
-                :username,
+                :name,
                 :email,
-                MD5(:password),
-                :firstName,
-                :lastName,
+                :password,
                 :role,
+                :tenant_id,
                 'active',
                 NOW()
             )
         ";
         
         $stmt = $db->prepare($sql);
-        $stmt->execute([
-            ':username' => $data['username'],
+        $success = $stmt->execute([
+            ':name' => $data['name'],
             ':email' => $data['email'],
-            ':password' => $data['password'],
-            ':firstName' => $data['firstName'] ?? '',
-            ':lastName' => $data['lastName'] ?? '',
-            ':role' => $data['role'] ?? 'user'
+            ':password' => $hashedPassword,
+            ':role' => $data['role'] ?? 'employee',
+            ':tenant_id' => $tenant
         ]);
         
-        return $db->lastInsertId();
+        if (!$success) {
+            throw new \Exception('Failed to create user');
+        }
+        
+        $userId = $db->lastInsertId();
+        
+        // Auto-login the new user
+        return $this->authenticate($tenant, $data['email'], $data['password']);
+    }
+
+    public function verifyToken(string $token): ?array
+    {
+        try {
+            $decoded = JWT::decode($token, new Key($this->jwtSecret, 'HS256'));
+            return (array) $decoded;
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    public function getUserFromToken(string $token): ?array
+    {
+        $payload = $this->verifyToken($token);
+        if (!$payload) {
+            return null;
+        }
+
+        $tenant = $payload['tenant'] ?? null;
+        $userId = $payload['user_id'] ?? null;
+
+        if (!$tenant || !$userId) {
+            return null;
+        }
+
+        $db = DatabaseManager::getConnection($tenant);
+        
+        $sql = "
+            SELECT id, name, email, role, status, tenant_id
+            FROM users 
+            WHERE id = :id 
+            AND status = 'active'
+            LIMIT 1
+        ";
+        
+        $stmt = $db->prepare($sql);
+        $stmt->execute([':id' => $userId]);
+        $user = $stmt->fetch();
+        
+        if (!$user) {
+            return null;
+        }
+        
+        return [
+            'id' => $user['id'],
+            'name' => $user['name'],
+            'email' => $user['email'],
+            'role' => $user['role'],
+            'tenant' => $tenant
+        ];
     }
 
     public function refreshToken(string $refreshToken): ?array
     {
         try {
-            $decoded = JWT::decode($refreshToken, new Key($this->jwtSecret, 'HS256'));
+            $payload = $this->verifyToken($refreshToken);
             
-            if ($decoded->type !== 'refresh') {
+            if (!$payload || ($payload['type'] ?? '') !== 'refresh') {
                 return null;
             }
-            
-            // Verify refresh token exists in database
-            $tenant = $decoded->tenant;
-            $userId = $decoded->user_id;
-            
-            if (!$this->verifyRefreshToken($tenant, $userId, $refreshToken)) {
-                return null;
-            }
-            
+
+            $tenant = $payload['tenant'];
+            $userId = $payload['user_id'];
+
             // Get user data
             $db = DatabaseManager::getConnection($tenant);
-            $sql = "SELECT * FROM user_table WHERE id = :id AND status = 'active'";
+            $sql = "
+                SELECT id, name, email, role, status
+                FROM users 
+                WHERE id = :id 
+                AND status = 'active'
+                LIMIT 1
+            ";
+            
             $stmt = $db->prepare($sql);
             $stmt->execute([':id' => $userId]);
             $user = $stmt->fetch();
@@ -190,152 +218,56 @@ class AuthService
             if (!$user) {
                 return null;
             }
-            
-            // Generate new tokens
-            $payload = [
+
+            // Generate new access token
+            $newPayload = [
                 'user_id' => $user['id'],
-                'username' => $user['username'],
+                'name' => $user['name'],
                 'email' => $user['email'],
-                'role' => $user['role'] ?? 'user',
+                'role' => $user['role'],
                 'tenant' => $tenant,
                 'iat' => time(),
                 'exp' => time() + $this->jwtExpiry
             ];
             
-            $accessToken = JWT::encode($payload, $this->jwtSecret, 'HS256');
-            
-            $refreshPayload = [
-                'user_id' => $user['id'],
-                'tenant' => $tenant,
-                'type' => 'refresh',
-                'iat' => time(),
-                'exp' => time() + $this->refreshExpiry
-            ];
-            
-            $newRefreshToken = JWT::encode($refreshPayload, $this->jwtSecret, 'HS256');
-            
-            // Update refresh token in database
-            $this->storeRefreshToken($tenant, $user['id'], $newRefreshToken);
+            $accessToken = JWT::encode($newPayload, $this->jwtSecret, 'HS256');
             
             return [
                 'user' => [
                     'id' => $user['id'],
-                    'username' => $user['username'],
+                    'name' => $user['name'],
                     'email' => $user['email'],
-                    'firstName' => $user['first_name'] ?? '',
-                    'lastName' => $user['last_name'] ?? '',
-                    'role' => $user['role'] ?? 'user',
+                    'role' => $user['role'],
                     'tenant' => $tenant
                 ],
                 'tokens' => [
                     'accessToken' => $accessToken,
-                    'refreshToken' => $newRefreshToken,
+                    'refreshToken' => $refreshToken,
                     'expiresIn' => $this->jwtExpiry
                 ]
             ];
-            
         } catch (\Exception $e) {
             return null;
         }
-    }
-
-    public function verifyToken(string $token): ?array
-    {
-        try {
-            $decoded = JWT::decode($token, new Key($this->jwtSecret, 'HS256'));
-            
-            return [
-                'user_id' => $decoded->user_id,
-                'username' => $decoded->username,
-                'email' => $decoded->email,
-                'role' => $decoded->role,
-                'tenant' => $decoded->tenant
-            ];
-            
-        } catch (\Exception $e) {
-            return null;
-        }
-    }
-
-    public function revokeToken(string $token): bool
-    {
-        // For now, we'll just add it to a blacklist table
-        // In production, consider using Redis for better performance
-        try {
-            $decoded = JWT::decode($token, new Key($this->jwtSecret, 'HS256'));
-            $tenant = $decoded->tenant;
-            
-            $db = DatabaseManager::getConnection($tenant);
-            $sql = "
-                INSERT INTO token_blacklist (token_hash, expires_at, created_at) 
-                VALUES (MD5(:token), FROM_UNIXTIME(:expires), NOW())
-                ON DUPLICATE KEY UPDATE created_at = NOW()
-            ";
-            
-            $stmt = $db->prepare($sql);
-            $stmt->execute([
-                ':token' => $token,
-                ':expires' => $decoded->exp
-            ]);
-            
-            return true;
-            
-        } catch (\Exception $e) {
-            return false;
-        }
-    }
-
-    private function storeRefreshToken(string $tenant, int $userId, string $refreshToken): void
-    {
-        $db = DatabaseManager::getConnection($tenant);
-        
-        // Remove old refresh tokens for this user
-        $deleteSql = "DELETE FROM refresh_tokens WHERE user_id = :userId";
-        $deleteStmt = $db->prepare($deleteSql);
-        $deleteStmt->execute([':userId' => $userId]);
-        
-        // Store new refresh token
-        $sql = "
-            INSERT INTO refresh_tokens (user_id, token_hash, expires_at, created_at) 
-            VALUES (:userId, MD5(:token), FROM_UNIXTIME(:expires), NOW())
-        ";
-        
-        $decoded = JWT::decode($refreshToken, new Key($this->jwtSecret, 'HS256'));
-        
-        $stmt = $db->prepare($sql);
-        $stmt->execute([
-            ':userId' => $userId,
-            ':token' => $refreshToken,
-            ':expires' => $decoded->exp
-        ]);
-    }
-
-    private function verifyRefreshToken(string $tenant, int $userId, string $refreshToken): bool
-    {
-        $db = DatabaseManager::getConnection($tenant);
-        
-        $sql = "
-            SELECT id FROM refresh_tokens 
-            WHERE user_id = :userId 
-            AND token_hash = MD5(:token) 
-            AND expires_at > NOW()
-        ";
-        
-        $stmt = $db->prepare($sql);
-        $stmt->execute([
-            ':userId' => $userId,
-            ':token' => $refreshToken
-        ]);
-        
-        return $stmt->fetch() !== false;
     }
 
     private function updateLastLogin(string $tenant, int $userId): void
     {
-        $db = DatabaseManager::getConnection($tenant);
-        
-        $sql = "UPDATE user_table SET last_login = NOW() WHERE id = :userId";
-        $stmt = $db->prepare($sql);
-        $stmt->execute([':userId' => $userId]);
+        try {
+            $db = DatabaseManager::getConnection($tenant);
+            $sql = "UPDATE users SET last_login = NOW() WHERE id = :id";
+            $stmt = $db->prepare($sql);
+            $stmt->execute([':id' => $userId]);
+        } catch (\Exception $e) {
+            // Log error but don't fail authentication
+            error_log("Failed to update last login for user {$userId}: " . $e->getMessage());
+        }
+    }
+
+    public function logout(string $tenant, int $userId): bool
+    {
+        // In a more complex system, you might want to blacklist the token
+        // For now, we'll just return true as the client will remove the token
+        return true;
     }
 }

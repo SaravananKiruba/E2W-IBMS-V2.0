@@ -23,10 +23,206 @@ A modern, full-stack, multi-tenant business management system built for scalabil
 - **PWA** - Progressive Web App capabilities
 
 ### Backend
-- **PHP 8.1+** - Server-side language
+- **PHP 8.0+** - Server-side language
 - **Slim Framework** - Lightweight REST API framework
 - **JWT Authentication** - Secure token-based auth
 - **MySQL** - Multi-tenant database architecture
+
+## 🚀 Quick Start
+
+### Prerequisites
+- Node.js 18+ and npm/yarn
+- PHP 8.0+ with Composer
+- MySQL 8.0+
+- Git
+
+### Installation
+
+1. **Clone the repository**
+   ```bash
+   git clone <repository-url>
+   cd E2W-IBMS-V2.0
+   ```
+
+2. **Frontend Setup**
+   ```bash
+   npm install
+   cp .env.local.example .env.local
+   ```
+
+3. **Backend Setup**
+   ```bash
+   cd backend
+   composer install
+   cp .env.example .env
+   cd ..
+   ```
+
+4. **Database Setup**
+   - Create a MySQL database (e.g., `ibms_test`)
+   - Update `backend/.env` file with your database credentials
+   - Import the database schema:
+   ```bash
+   mysql -u username -p database_name < setup_database.sql
+   ```
+
+5. **Start Development Servers**
+   
+   **Option A: Use the provided script (Windows)**
+   ```bash
+   start-dev.bat
+   ```
+   
+   **Option B: Manual start**
+   ```bash
+   # Terminal 1 - Backend
+   cd backend
+   php -S localhost:8000 -t public
+   
+   # Terminal 2 - Frontend
+   npm run dev
+   ```
+
+6. **Access Application**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:8000/api
+   - Login: http://localhost:3000/login
+
+## 🔐 Default Credentials
+
+- **Email**: admin@ibms.local
+- **Password**: admin123
+
+## 🏢 Multi-tenant Support
+
+The system supports multiple tenants:
+- **test** - Test environment (default)
+- **easy2work** - Easy2Work Solutions
+- **gracescans** - Grace Scans Ltd
+- **live** - Production environment
+
+Access tenant-specific dashboard: `http://localhost:3000/{tenant}/dashboard`
+
+## 📁 Project Structure
+
+```
+├── src/
+│   ├── app/                    # Next.js app directory
+│   │   ├── [tenant]/          # Tenant-specific routes
+│   │   ├── login/             # Login page
+│   │   └── layout.tsx         # Root layout
+│   ├── components/            # React components
+│   │   ├── ui/               # Base UI components
+│   │   ├── layout/           # Layout components
+│   │   ├── providers/        # Context providers
+│   │   └── [modules]/        # Feature-specific components
+│   ├── lib/                  # Utility libraries
+│   ├── hooks/                # Custom React hooks
+│   └── types/                # TypeScript type definitions
+├── backend/
+│   ├── src/
+│   │   ├── Controllers/      # API controllers
+│   │   ├── Services/         # Business logic
+│   │   ├── Middleware/       # Custom middleware
+│   │   └── Database/         # Database management
+│   ├── public/               # Public directory
+│   └── tests/                # PHP tests
+└── public/                   # Static assets
+```
+
+## 🔧 Development
+
+### Frontend Commands
+```bash
+npm run dev          # Start development server
+npm run build        # Build for production
+npm run start        # Start production server
+npm run lint         # Run ESLint
+npm run test         # Run tests
+```
+
+### Backend Commands
+```bash
+cd backend
+composer start       # Start PHP development server
+composer test        # Run PHPUnit tests
+```
+
+## 🧪 Testing
+
+### Frontend Testing
+```bash
+npm test             # Run Jest tests
+npm run test:watch   # Run tests in watch mode
+npm run test:coverage # Run tests with coverage
+```
+
+### Backend Testing
+```bash
+cd backend
+composer test        # Run PHPUnit tests
+```
+
+## 🚀 Production Deployment
+
+1. **Build the frontend**
+   ```bash
+   npm run build
+   ```
+
+2. **Configure environment variables**
+   - Update `.env.local` for frontend
+   - Update `backend/.env` for backend
+
+3. **Deploy backend**
+   - Upload backend files to your server
+   - Configure web server (Apache/Nginx) to point to `backend/public`
+   - Set up SSL certificates
+
+4. **Deploy frontend**
+   - Deploy the built files to your hosting provider
+   - Configure environment variables
+   - Set up domain and SSL
+
+## 🔒 Security Considerations
+
+- JWT tokens for authentication
+- Password hashing with bcrypt
+- SQL injection prevention with prepared statements
+- CORS configuration
+- Input validation and sanitization
+- Rate limiting (recommended for production)
+
+## 📊 Database Schema
+
+The system uses a multi-tenant database architecture with the following main tables:
+- `users` - User authentication and profiles
+- `clients` - Customer management
+- `orders` - Order processing
+- `transactions` - Financial tracking
+- `rates` - Service pricing
+- `documents` - File management
+- `activity_logs` - Audit trail
+
+## 🤝 Contributing
+
+1. Fork the repository
+2. Create a feature branch
+3. Make your changes
+4. Add tests if applicable
+5. Submit a pull request
+
+## 📝 License
+
+This project is proprietary software. All rights reserved.
+
+## 📞 Support
+
+For support and questions, please contact the development team.
+
+---
+
+**IBMS v2.0** - Built with ❤️ for modern businesses
 
 ### Database Structure
 - `baleeed5_easy2work` - Easy2Work tenant

@@ -20,10 +20,10 @@ class AuthController
         $data = json_decode($request->getBody()->getContents(), true);
         
         // Validate required fields
-        if (empty($data['username']) || empty($data['password'])) {
+        if (empty($data['email']) || empty($data['password'])) {
             $error = [
                 'success' => false,
-                'message' => 'Username and password are required'
+                'message' => 'Email and password are required'
             ];
             
             $response->getBody()->write(json_encode($error));
@@ -31,8 +31,9 @@ class AuthController
         }
         
         try {
-            $tenant = $data['tenant'] ?? 'easy2work'; // Default tenant
-            $result = $this->authService->authenticate($tenant, $data['username'], $data['password']);
+            // Get tenant from headers or default to test
+            $tenant = $request->getHeaderLine('X-Tenant') ?: 'test';
+            $result = $this->authService->authenticate($tenant, $data['email'], $data['password']);
             
             if (!$result) {
                 $error = [
