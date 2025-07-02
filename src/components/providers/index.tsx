@@ -13,10 +13,15 @@ export function Providers({ children }: { children: React.ReactNode }) {
       new QueryClient({
         defaultOptions: {
           queries: {
-            staleTime: 60 * 1000, // 1 minute
+            staleTime: 5 * 60 * 1000, // 5 minutes for demo mode
+            gcTime: 10 * 60 * 1000, // 10 minutes cache (previously cacheTime)
             refetchOnWindowFocus: false,
+            refetchOnReconnect: false,
             retry: (failureCount, error: any) => {
-              // Don't retry on 4xx errors
+              // In demo mode, don't retry as much
+              if (process.env.NODE_ENV === 'development') {
+                return failureCount < 1
+              }
               if (error?.response?.status >= 400 && error?.response?.status < 500) {
                 return false
               }
@@ -38,30 +43,47 @@ export function Providers({ children }: { children: React.ReactNode }) {
           <Toaster
             position="top-right"
             toastOptions={{
-              duration: 4000,
+              duration: 3000,
               style: {
-                background: '#363636',
+                background: 'rgba(0, 0, 0, 0.8)',
                 color: '#fff',
+                fontSize: '14px',
+                borderRadius: '8px',
+                backdropFilter: 'blur(10px)',
               },
               success: {
-                duration: 3000,
+                duration: 2500,
+                style: {
+                  background: 'rgba(34, 197, 94, 0.9)',
+                },
                 iconTheme: {
-                  primary: '#4ade80',
-                  secondary: '#fff',
+                  primary: '#ffffff',
+                  secondary: '#22c55e',
                 },
               },
               error: {
-                duration: 5000,
+                duration: 4000,
+                style: {
+                  background: 'rgba(239, 68, 68, 0.9)',
+                },
                 iconTheme: {
-                  primary: '#ef4444',
-                  secondary: '#fff',
+                  primary: '#ffffff',
+                  secondary: '#ef4444',
+                },
+              },
+              loading: {
+                duration: Infinity,
+                style: {
+                  background: 'rgba(59, 130, 246, 0.9)',
                 },
               },
             }}
           />
         </AuthProvider>
       </TenantProvider>
-      <ReactQueryDevtools initialIsOpen={false} />
+      {process.env.NODE_ENV === 'development' && (
+        <ReactQueryDevtools initialIsOpen={false} />
+      )}
     </QueryClientProvider>
   )
 }

@@ -15,22 +15,32 @@ export function DashboardLayout({ children, tenant }: DashboardLayoutProps) {
   const { currentTenant } = useTenant()
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50/50">
+      {/* Mobile sidebar backdrop */}
+      {sidebarOpen && (
+        <div 
+          className="fixed inset-0 bg-gray-900/50 backdrop-blur-sm z-40 lg:hidden"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+      
       <Sidebar 
         open={sidebarOpen} 
         setOpen={setSidebarOpen}
         tenant={tenant}
       />
       
-      <div className="lg:pl-64">
+      <div className="lg:pl-64 transition-all duration-200">
         <Header 
           setSidebarOpen={setSidebarOpen}
           tenant={tenant}
         />
         
-        <main className="py-6">
+        <main className="py-4 sm:py-6 lg:py-8">
           <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-            {children}
+            <div className="animate-in fade-in duration-300">
+              {children}
+            </div>
           </div>
         </main>
       </div>
