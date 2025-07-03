@@ -32,6 +32,7 @@ import {
   ChatBubbleLeftEllipsisIcon,
   LockClosedIcon,
   ReceiptPercentIcon,
+  UserIcon,
 } from '@heroicons/react/24/outline'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
@@ -174,186 +175,164 @@ export function Sidebar({ open, setOpen, tenant }: SidebarProps) {
     }));
   };
 
-  const sidebarContent = (
-    <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 shadow-xl border-r border-gray-200">
-      <div className="flex h-16 shrink-0 items-center border-b border-gray-100 -mx-6 px-6">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 bg-gradient-to-br from-blue-600 to-blue-700 rounded-xl flex items-center justify-center text-white font-bold text-lg shadow-lg">
-            {tenant?.charAt(0)?.toUpperCase() || 'I'}
-          </div>
-          <div>
-            <h2 className="text-lg font-bold text-gray-900">
-              IBMS
-            </h2>
-            <p className="text-xs text-gray-500 capitalize">{tenant} Workspace</p>
-          </div>
-        </div>
-      </div>
+  // Customize the active link styles
+  const activeLinkClasses = "bg-theme-primary/10 text-theme-primary";
+  const inactiveLinkClasses = "text-gray-700 hover:bg-gray-50 hover:text-theme-primary";
+  
+  // Function to determine if a navigation item is active
+  const isActive = (href: string) => {
+    const pathWithoutTenant = pathname.replace(`/${tenant}`, '');
+    return href === '/' ? pathWithoutTenant === '' : pathWithoutTenant.startsWith(href);
+  };
+
+  // Function to render navigation items consistently for both mobile and desktop
+  const renderNavItem = (item: NavItem) => {
+    // Handle items with children (nested navigation)
+    if (item.children) {
+      const isExpanded = expandedSections[item.name] || false;
+      const hasActiveChild = item.children.some(
+        (child) => pathname === `/${tenant}${child.href}`
+      );
+      const ItemIcon = item.icon;
       
-      <nav className="flex flex-1 flex-col">
-        <ul role="list" className="flex flex-1 flex-col gap-y-7">
-          <li>
-            <ul role="list" className="-mx-2 space-y-1">
-              {navigation.map((item) => {
-                // Handle items with children (nested navigation)
-                if (item.children) {
-                  const isExpanded = expandedSections[item.name] || false;
-                  const hasActiveChild = item.children.some(
-                    (child) => pathname === `/${tenant}${child.href}`
-                  );
-                  const ItemIcon = item.icon;
-                  
-                  return (
-                    <li key={item.name} className="space-y-1">
-                      <button
-                        onClick={() => toggleSection(item.name)}
-                        className={clsx(
-                          hasActiveChild
-                            ? 'bg-blue-50/70 text-blue-700'
-                            : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50/50',
-                          'group flex w-full items-center justify-between gap-x-3 rounded-l-lg p-3 text-sm leading-6 font-medium transition-all duration-200'
-                        )}
-                      >
-                        <div className="flex items-center gap-x-3">
-                          <ItemIcon
-                            className={clsx(
-                              hasActiveChild ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600',
-                              'h-5 w-5 shrink-0 transition-colors duration-200'
-                            )}
-                            aria-hidden="true"
-                          />
-                          <span className="truncate">{item.name}</span>
-                        </div>
-                        <svg 
-                          className={clsx(
-                            "h-5 w-5 transition-transform duration-200",
-                            isExpanded ? "transform rotate-90" : ""
-                          )}
-                          viewBox="0 0 20 20" 
-                          fill="currentColor"
-                          aria-hidden="true"
-                        >
-                          <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
-                        </svg>
-                      </button>
-                      
-                      {/* Nested navigation items */}
-                      {isExpanded && (
-                        <ul className="mt-1 pl-8 space-y-1">
-                          {item.children.map((child) => {
-                            const childHref = `/${tenant}${child.href}`;
-                            const isActive = pathname === childHref;
-                            const ChildIcon = child.icon;
-                            
-                            return (
-                              <li key={child.name}>
-                                <Link
-                                  href={childHref}
-                                  className={clsx(
-                                    isActive
-                                      ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
-                                      : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50/50',
-                                    'group flex gap-x-3 rounded-l-lg p-2 text-sm leading-6 font-medium transition-all duration-200'
-                                  )}
-                                  onClick={() => setOpen(false)}
-                                >
-                                  <ChildIcon
-                                    className={clsx(
-                                      isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600',
-                                      'h-5 w-5 shrink-0 transition-colors duration-200'
-                                    )}
-                                    aria-hidden="true"
-                                  />
-                                  <span className="flex-1">{child.name}</span>
-                                  
-                                  {/* Badge for new or active features */}
-                                  {child.badge && (
-                                    <span className={clsx(
-                                      'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
-                                      child.badge === 'New' ? 'bg-green-100 text-green-800' :
-                                      child.badge === 'Active' ? 'bg-blue-100 text-blue-800' :
-                                      'bg-gray-100 text-gray-800'
-                                    )}>
-                                      {child.badge}
-                                    </span>
-                                  )}
-                                </Link>
-                              </li>
-                            );
-                          })}
-                        </ul>
-                      )}
-                    </li>
-                  );
-                }
-                
-                // Regular navigation item (no children)
-                const href = `/${tenant}${item.href}`;
-                const isActive = pathname === href;
-                const Icon = item.icon;
+      return (
+        <div key={item.name} className="space-y-1">
+          <button
+            onClick={() => toggleSection(item.name)}
+            className={clsx(
+              hasActiveChild
+                ? 'bg-blue-50/70 text-blue-700'
+                : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50/50',
+              'group flex w-full items-center justify-between gap-x-3 rounded-l-lg p-3 text-sm leading-6 font-medium transition-all duration-200'
+            )}
+          >
+            <div className="flex items-center gap-x-3">
+              <ItemIcon
+                className={clsx(
+                  hasActiveChild ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600',
+                  'h-5 w-5 shrink-0 transition-colors duration-200'
+                )}
+                aria-hidden="true"
+              />
+              <span className="truncate">{item.name}</span>
+            </div>
+            <svg 
+              className={clsx(
+                "h-5 w-5 transition-transform duration-200",
+                isExpanded ? "transform rotate-90" : ""
+              )}
+              viewBox="0 0 20 20" 
+              fill="currentColor"
+              aria-hidden="true"
+            >
+              <path fillRule="evenodd" d="M7.21 14.77a.75.75 0 01.02-1.06L11.168 10 7.23 6.29a.75.75 0 111.04-1.08l4.5 4.25a.75.75 0 010 1.08l-4.5 4.25a.75.75 0 01-1.06-.02z" clipRule="evenodd" />
+            </svg>
+          </button>
+          
+          {/* Nested navigation items */}
+          {isExpanded && (
+            <div className="mt-1 pl-8 space-y-1">
+              {item.children.map((child) => {
+                const childHref = `/${tenant}${child.href}`;
+                const isActive = pathname === childHref;
+                const ChildIcon = child.icon;
                 
                 return (
-                  <li key={item.name}>
+                  <div key={child.name}>
                     <Link
-                      href={href}
+                      href={childHref}
                       className={clsx(
                         isActive
                           ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
-                          : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50/50',
-                        'group flex items-center justify-between gap-x-3 rounded-l-lg p-3 text-sm leading-6 font-medium transition-all duration-200'
+                          : 'text-gray-600 hover:text-blue-600 hover:bg-blue-50/50',
+                        'group flex gap-x-3 rounded-l-lg p-2 text-sm leading-6 font-medium transition-all duration-200'
                       )}
                       onClick={() => setOpen(false)}
                     >
-                      <div className="flex items-center gap-x-3">
-                        <Icon
-                          className={clsx(
-                            isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600',
-                            'h-5 w-5 shrink-0 transition-colors duration-200'
-                          )}
-                          aria-hidden="true"
-                        />
-                        <span>{item.name}</span>
-                      </div>
+                      <ChildIcon
+                        className={clsx(
+                          isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600',
+                          'h-5 w-5 shrink-0 transition-colors duration-200'
+                        )}
+                        aria-hidden="true"
+                      />
+                      <span className="flex-1">{child.name}</span>
                       
                       {/* Badge for new or active features */}
-                      {item.badge && (
+                      {child.badge && (
                         <span className={clsx(
                           'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
-                          item.badge === 'New' ? 'bg-green-100 text-green-800' :
-                          item.badge === 'Active' ? 'bg-blue-100 text-blue-800' :
+                          child.badge === 'New' ? 'bg-green-100 text-green-800' :
+                          child.badge === 'Active' ? 'bg-blue-100 text-blue-800' :
                           'bg-gray-100 text-gray-800'
                         )}>
-                          {item.badge}
+                          {child.badge}
                         </span>
                       )}
                     </Link>
-                  </li>
+                  </div>
                 );
               })}
-            </ul>
-          </li>
-          
-          {/* User profile footer */}
-          <li className="mt-auto">
-            <div className="rounded-lg bg-gradient-to-r from-blue-50 to-indigo-50 p-4 border border-blue-100">
-              <div className="flex items-center space-x-3">
-                <div className="w-8 h-8 bg-blue-100 rounded-full flex items-center justify-center">
-                  <span className="text-xs font-semibold text-blue-700">
-                    {user?.name?.charAt(0)?.toUpperCase() || 'D'}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {user?.name || 'Demo User'}
-                  </p>
-                  <p className="text-xs text-gray-500 capitalize">
-                    {user?.role || 'Administrator'}
-                  </p>
-                </div>
-              </div>
             </div>
-          </li>
-        </ul>
+          )}
+        </div>
+      );
+    }
+    
+    // Regular navigation item (no children)
+    const href = `/${tenant}${item.href}`;
+    const isActive = pathname === href;
+    const Icon = item.icon;
+    
+    return (
+      <div key={item.name}>
+        <Link
+          href={href}
+          className={clsx(
+            isActive
+              ? 'bg-blue-50 text-blue-700 border-r-2 border-blue-600'
+              : 'text-gray-700 hover:text-blue-600 hover:bg-blue-50/50',
+            'group flex items-center justify-between gap-x-3 rounded-l-lg p-3 text-sm leading-6 font-medium transition-all duration-200'
+          )}
+          onClick={() => setOpen(false)}
+        >
+          <div className="flex items-center gap-x-3">
+            <Icon
+              className={clsx(
+                isActive ? 'text-blue-600' : 'text-gray-400 group-hover:text-blue-600',
+                'h-5 w-5 shrink-0 transition-colors duration-200'
+              )}
+              aria-hidden="true"
+            />
+            <span>{item.name}</span>
+          </div>
+          
+          {/* Badge for new or active features */}
+          {item.badge && (
+            <span className={clsx(
+              'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
+              item.badge === 'New' ? 'bg-green-100 text-green-800' :
+              item.badge === 'Active' ? 'bg-blue-100 text-blue-800' :
+              'bg-gray-100 text-gray-800'
+            )}>
+              {item.badge}
+            </span>
+          )}
+        </Link>
+      </div>
+    );
+  };
+
+  const sidebarContent = (
+    <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white px-6 pb-4 shadow-xl border-r border-gray-200">
+      <div className="flex h-16 shrink-0 items-center border-b border-gray-200 px-6">
+        <TenantLogo tenant={tenant} />
+      </div>
+      
+      <nav className="flex flex-1 flex-col px-4">
+        <div className="space-y-1">
+          {navigation.map((item) => renderNavItem(item))}
+        </div>
       </nav>
     </div>
   )
@@ -372,7 +351,7 @@ export function Sidebar({ open, setOpen, tenant }: SidebarProps) {
             leaveFrom="opacity-100"
             leaveTo="opacity-0"
           >
-            <div className="fixed inset-0 bg-gray-900/80 backdrop-blur-sm" />
+            <div className="fixed inset-0 bg-gray-900/80" />
           </Transition.Child>
 
           <div className="fixed inset-0 flex">
@@ -395,10 +374,10 @@ export function Sidebar({ open, setOpen, tenant }: SidebarProps) {
                   leaveFrom="opacity-100"
                   leaveTo="opacity-0"
                 >
-                  <div className="absolute left-full top-0 flex w-16 justify-center pt-5">
-                    <button 
-                      type="button" 
-                      className="-m-2.5 p-2.5 rounded-full bg-white/10 backdrop-blur-sm hover:bg-white/20 transition-colors" 
+                  <div className="absolute top-0 right-0 -mr-12 pt-4">
+                    <button
+                      type="button"
+                      className="ml-1 flex h-10 w-10 items-center justify-center rounded-full focus:outline-none focus:ring-2 focus:ring-inset focus:ring-white"
                       onClick={() => setOpen(false)}
                     >
                       <span className="sr-only">Close sidebar</span>
@@ -406,7 +385,17 @@ export function Sidebar({ open, setOpen, tenant }: SidebarProps) {
                     </button>
                   </div>
                 </Transition.Child>
-                {sidebarContent}
+                {/* Mobile sidebar content */}
+                <div className="flex grow flex-col gap-y-5 overflow-y-auto bg-white pb-4">
+                  <div className="flex h-16 shrink-0 items-center border-b border-gray-200 px-6">
+                    <TenantLogo tenant={tenant} />
+                  </div>
+                  <nav className="flex flex-1 flex-col px-4">
+                    <div className="space-y-1">
+                      {navigation.map((item) => renderNavItem(item))}
+                    </div>
+                  </nav>
+                </div>
               </Dialog.Panel>
             </Transition.Child>
           </div>
@@ -415,8 +404,48 @@ export function Sidebar({ open, setOpen, tenant }: SidebarProps) {
 
       {/* Desktop sidebar */}
       <div className="hidden lg:fixed lg:inset-y-0 lg:z-50 lg:flex lg:w-64 lg:flex-col">
-        {sidebarContent}
+        <div className="flex grow flex-col gap-y-5 overflow-y-auto border-r border-gray-200 bg-white">
+          <div className="flex h-16 shrink-0 items-center border-b border-gray-200 px-6">
+            <TenantLogo tenant={tenant} />
+          </div>
+          <nav className="flex flex-1 flex-col px-4">
+            <div className="space-y-1">
+              {navigation.map((item) => renderNavItem(item))}
+            </div>
+          </nav>
+          <div className="p-4 mt-auto">
+            <div className="flex items-center gap-3 rounded-md bg-theme-primary/10 p-3">
+              <div className="rounded-full bg-theme-primary/20 p-1">
+                <UserIcon className="h-5 w-5 text-theme-primary" />
+              </div>
+              <div className="flex-1 text-sm">
+                <p className="font-medium text-gray-900">
+                  {user?.firstName} {user?.lastName}
+                </p>
+                <p className="text-gray-500 text-xs truncate">{user?.email}</p>
+              </div>
+            </div>
+          </div>
+        </div>
       </div>
     </>
+  )
+}
+
+function TenantLogo({ tenant }: { tenant: string }) {
+  return (
+    <Link href={`/${tenant}/dashboard`} className="flex items-center">
+      <img
+        className="h-8 w-auto"
+        src={`/icons/icon-72x72.png`}
+        alt="IBMS Logo"
+      />
+      <span className="ml-2 text-xl font-bold bg-gradient-to-r from-theme-primary to-theme-secondary bg-clip-text text-transparent">
+        IBMS
+      </span>
+      <span className="ml-1 text-xs bg-theme-tertiary/20 text-theme-tertiary px-1.5 py-0.5 rounded">
+        {tenant}
+      </span>
+    </Link>
   )
 }

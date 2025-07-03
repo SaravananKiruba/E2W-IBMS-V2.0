@@ -15,10 +15,15 @@ import type { Order, OrderFormData } from '@/types'
 import { OrderForm } from './order-form'
 import { OrderDetails } from './order-details'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { PageContainer } from '../layout/page-container'
 
-export function OrdersPage() {
+interface OrdersPageProps {
+  tenant?: string;
+}
+
+export function OrdersPage({ tenant }: OrdersPageProps) {
   const params = useParams()
-  const tenant = params.tenant as string
+  const currentTenant = tenant || (params?.tenant as string) || 'default'
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState('all')
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
@@ -236,7 +241,7 @@ export function OrdersPage() {
               <OrderForm
                 onSubmit={handleCreateOrder}
                 isLoading={createOrderMutation.isPending}
-                tenant={tenant}
+                tenant={currentTenant}
               />
             </DialogContent>
           </Dialog>
@@ -361,7 +366,7 @@ export function OrdersPage() {
               initialData={selectedOrder}
               onSubmit={handleUpdateOrder}
               isLoading={updateOrderMutation.isPending}
-              tenant={tenant}
+              tenant={currentTenant}
             />
           )}
         </DialogContent>

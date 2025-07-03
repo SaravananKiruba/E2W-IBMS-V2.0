@@ -1,5 +1,9 @@
 import { CommunicationChannelsPage } from '@/components/communications/communication-channels-page'
 
-export default function CommunicationPage() {
-  return <CommunicationChannelsPage />
+interface PageProps {
+  params: { tenant: string }
+}
+
+export default function CommunicationPage({ params }: PageProps) {
+  return <CommunicationChannelsPage tenant={params.tenant} />
 }

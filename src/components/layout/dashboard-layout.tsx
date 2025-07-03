@@ -43,6 +43,21 @@ export function DashboardLayout({ children, tenant }: DashboardLayoutProps) {
             </div>
           </div>
         </main>
+
+        {/* Footer with branding */}
+        <footer className="border-t border-gray-200 bg-white py-4 px-4 sm:px-6 lg:px-8">
+          <div className="mx-auto max-w-7xl flex flex-col sm:flex-row justify-between items-center gap-2">
+            <p className="text-sm text-gray-500">
+              © 2025 IBMS - Intelligent Business Management Software
+            </p>
+            <div className="flex items-center space-x-1">
+              <span className="text-xs text-gray-400">Powered by</span>
+              <span className="text-xs font-medium bg-gradient-to-r from-theme-primary to-theme-secondary bg-clip-text text-transparent">
+                Easy2Work
+              </span>
+            </div>
+          </div>
+        </footer>
       </div>
     </div>
   )
