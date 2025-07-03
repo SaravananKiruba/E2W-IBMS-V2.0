@@ -56,37 +56,92 @@ const generateMockData = {
 
 class ApiClient {
   private mockMode = DEMO_MODE
+  private baseUrl = process.env.NEXT_PUBLIC_API_BASE_URL || 'https://api.ibms.example.com'
 
   constructor() {
     console.log(this.mockMode ? '🎭 Running in DEMO mode with mock data' : '🔗 Connected to backend API')
   }
 
-  // Mock API methods for demo
-  private async mockResponse<T>(data: T, delay: number = 800): Promise<ApiResponse<T>> {
-    await mockDelay(delay)
-    return {
-      success: true,
-      data,
-      message: 'Success'
+  // Standard REST methods
+  async get<T = any>(endpoint: string, params?: Record<string, any>): Promise<ApiResponse<T>> {
+    if (this.mockMode) {
+      return this.handleMockRequest(endpoint, 'GET', undefined, params)
     }
-  }
-
-  private async mockPaginatedResponse<T>(data: T[], page: number = 1, limit: number = 10): Promise<PaginatedResponse<T>> {
-    await mockDelay()
-    const total = data.length
-    const startIndex = (page - 1) * limit
-    const endIndex = startIndex + limit
-    const paginatedData = data.slice(startIndex, endIndex)
     
-    return {
-      data: paginatedData,
-      total,
-      page,
-      limit,
-      totalPages: Math.ceil(total / limit)
+    try {
+      const url = new URL(`${this.baseUrl}${endpoint}`)
+      if (params) {
+        Object.keys(params).forEach(key => {
+          if (params[key] !== undefined && params[key] !== null) {
+            url.searchParams.append(key, params[key].toString())
+          }
+        })
+      }
+      
+      const response = await fetch(url.toString(), {
+        method: 'GET',
+        headers: this.getHeaders(),
+      })
+      
+      return this.handleResponse<T>(response)
+    } catch (error) {
+      return this.handleError(error)
     }
   }
-
+  
+  async post<T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    if (this.mockMode) {
+      return this.handleMockRequest(endpoint, 'POST', data)
+    }
+    
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'POST',
+        headers: this.getHeaders(),
+        body: JSON.stringify(data)
+      })
+      
+      return this.handleResponse<T>(response)
+    } catch (error) {
+      return this.handleError(error)
+    }
+  }
+  
+  async put<T = any>(endpoint: string, data?: any): Promise<ApiResponse<T>> {
+    if (this.mockMode) {
+      return this.handleMockRequest(endpoint, 'PUT', data)
+    }
+    
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'PUT',
+        headers: this.getHeaders(),
+        body: JSON.stringify(data)
+      })
+      
+      return this.handleResponse<T>(response)
+    } catch (error) {
+      return this.handleError(error)
+    }
+  }
+  
+  async delete<T = any>(endpoint: string): Promise<ApiResponse<T>> {
+    if (this.mockMode) {
+      return this.handleMockRequest(endpoint, 'DELETE')
+    }
+    
+    try {
+      const response = await fetch(`${this.baseUrl}${endpoint}`, {
+        method: 'DELETE',
+        headers: this.getHeaders(),
+      })
+      
+      return this.handleResponse<T>(response)
+    } catch (error) {
+      return this.handleError(error)
+    }
+  }
+  
   // Auth methods
   async login(credentials: { email: string; password: string; tenant?: string }) {
     if (this.mockMode) {
@@ -285,13 +340,117 @@ class ApiClient {
     throw new Error('Backend API not configured')
   }
 
-  // Generic request method for future extensions
-  async request<T>(endpoint: string, options?: RequestInit): Promise<T> {
-    if (this.mockMode) {
-      console.warn('Mock mode: Request to', endpoint, 'intercepted')
-      throw new Error('Mock mode: Use specific API methods')
+  // Helper methods
+  private getHeaders(): HeadersInit {
+    const headers: HeadersInit = {
+      'Content-Type': 'application/json',
+      'Accept': 'application/json',
     }
-    throw new Error('Backend API not configured')
+    
+    // Add auth token if available
+    const token = typeof window !== 'undefined' ? 
+      localStorage.getItem('token') || document.cookie.replace(/(?:(?:^|.*;\s*)token\s*\=\s*([^;]*).*$)|^.*$/, '$1') : 
+      null
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`
+    }
+    
+    return headers
+  }
+  
+  private async handleResponse<T>(response: Response): Promise<ApiResponse<T>> {
+    const data = await response.json()
+    
+    if (!response.ok) {
+      return {
+        success: false,
+        error: data.message || 'An error occurred',
+        message: data.message || 'Request failed'
+      }
+    }
+    
+    return {
+      success: true,
+      data: data.data || data,
+      message: data.message || 'Success',
+      pagination: data.pagination
+    }
+  }
+  
+  private handleError(error: any): ApiResponse {
+    console.error('API Error:', error)
+    return {
+      success: false,
+      error: error.message || 'An unknown error occurred',
+      message: 'Request failed'
+    }
+  }
+  
+  private async handleMockRequest<T = any>(
+    endpoint: string, 
+    method: string, 
+    data?: any, 
+    params?: Record<string, any>
+  ): Promise<ApiResponse<T>> {
+    await mockDelay()
+    
+    // Handle auth endpoints
+    if (endpoint.startsWith('/auth')) {
+      if (endpoint === '/auth/login' && method === 'POST') {
+        return this.login(data) as unknown as ApiResponse<T>
+      }
+      
+      if (endpoint === '/auth/me' && method === 'GET') {
+        return this.mockResponse({
+          id: 'demo-user',
+          username: 'demouser',
+          firstName: 'Demo',
+          lastName: 'User',
+          email: 'demo@example.com',
+          role: 'admin',
+          tenant: 'test'
+        }) as unknown as ApiResponse<T>
+      }
+      
+      if (endpoint === '/auth/logout') {
+        return this.logout() as unknown as ApiResponse<T>
+      }
+    }
+    
+    // Handle other endpoints based on API structure
+    // This can be expanded as needed for the mock API
+    
+    return this.mockResponse({ 
+      message: `Mock ${method} response for ${endpoint}`,
+      data: data || {}
+    }) as unknown as ApiResponse<T>
+  }
+
+  // Mock API methods for demo
+  private async mockResponse<T>(data: T, delay: number = 800): Promise<ApiResponse<T>> {
+    await mockDelay(delay)
+    return {
+      success: true,
+      data,
+      message: 'Success'
+    }
+  }
+
+  private async mockPaginatedResponse<T>(data: T[], page: number = 1, limit: number = 10): Promise<PaginatedResponse<T>> {
+    await mockDelay()
+    const total = data.length
+    const startIndex = (page - 1) * limit
+    const endIndex = startIndex + limit
+    const paginatedData = data.slice(startIndex, endIndex)
+    
+    return {
+      data: paginatedData,
+      total,
+      page,
+      limit,
+      totalPages: Math.ceil(total / limit)
+    }
   }
 }
 

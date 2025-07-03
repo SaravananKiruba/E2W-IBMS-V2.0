@@ -1,10 +1,18 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/components/providers/auth-provider'
 import { EyeIcon, EyeSlashIcon } from '@heroicons/react/24/outline'
 import Link from 'next/link'
+import { useTenant } from '@/components/providers/tenant-provider'
+
+const tenantOptions = [
+  { id: 'easy2work', name: 'Easy2Work', logo: '/logos/easy2work.png' },
+  { id: 'gracescans', name: 'Grace Scans', logo: '/logos/gracescans.png' },
+  { id: 'baleen', name: 'Baleen Media', logo: '/logos/baleen.png' },
+  { id: 'test', name: 'Baleen Test', logo: '/logos/test.png' },
+]
 
 export default function LoginPage() {
   const [email, setEmail] = useState('demo@ibms.com')
@@ -12,23 +20,69 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [detectedTenant, setDetectedTenant] = useState<string | null>(null)
+  const [selectedTenant, setSelectedTenant] = useState<string | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
+  const [showTenantDropdown, setShowTenantDropdown] = useState(false)
   const router = useRouter()
   
   const { login } = useAuth()
+  const { setCurrentTenant } = useTenant()
+  
+  // Auto-detect tenant from subdomain
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      const hostname = window.location.hostname
+      const subdomain = hostname.split('.')[0]
+      
+      // Check if subdomain matches any tenant
+      const matchedTenant = tenantOptions.find(
+        tenant => tenant.id.toLowerCase() === subdomain.toLowerCase()
+      )
+      
+      if (matchedTenant) {
+        setDetectedTenant(matchedTenant.id)
+        setSelectedTenant(matchedTenant.id)
+      }
+    }
+  }, [])
+  
+  const filteredTenants = tenantOptions.filter(
+    tenant => tenant.name.toLowerCase().includes(searchTerm.toLowerCase())
+  )
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    if (!selectedTenant) {
+      setError('Please select a company')
+      return
+    }
+
     setError('')
     setIsLoading(true)
 
     try {
-      await login(email, password)
-      router.push('/demo/dashboard')
+      // Encode special characters in password
+      const encodedPassword = encodeURIComponent(password)
+      
+      await login(email, encodedPassword)
+      // Set the tenant in context
+      if (setCurrentTenant) {
+        setCurrentTenant(selectedTenant)
+      }
+      
+      // Redirect to tenant's dashboard
+      router.push(`/${selectedTenant}/dashboard`)
     } catch (err: any) {
       setError(err.message || 'Login failed')
     } finally {
       setIsLoading(false)
     }
+  }
+  
+  const selectTenant = (tenantId: string) => {
+    setSelectedTenant(tenantId)
+    setShowTenantDropdown(false)
   }
 
   const handleDemoLogin = async () => {
@@ -71,6 +125,74 @@ export default function LoginPage() {
           )}
 
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Company Selection */}
+            <div>
+              <label htmlFor="company" className="block text-sm font-medium text-gray-700 mb-2">
+                Company
+              </label>
+              <div className="relative">
+                <button
+                  type="button"
+                  className="relative w-full bg-white border border-gray-300 rounded-lg py-3 px-4 text-left shadow-sm focus:outline-none focus:ring-1 focus:ring-blue-500 focus:border-blue-500"
+                  onClick={() => setShowTenantDropdown(!showTenantDropdown)}
+                >
+                  {selectedTenant ? (
+                    <div className="flex items-center">
+                      <div className="w-6 h-6 flex items-center justify-center bg-blue-100 rounded-full mr-3">
+                        <span className="text-blue-800 text-xs font-medium">
+                          {tenantOptions.find(t => t.id === selectedTenant)?.name.charAt(0) || '?'}
+                        </span>
+                      </div>
+                      <span>{tenantOptions.find(t => t.id === selectedTenant)?.name}</span>
+                    </div>
+                  ) : (
+                    <span className="text-gray-500">Select your company</span>
+                  )}
+                  <span className="absolute inset-y-0 right-0 flex items-center pr-2 pointer-events-none">
+                    <svg className="h-5 w-5 text-gray-400" viewBox="0 0 20 20" fill="currentColor">
+                      <path fillRule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clipRule="evenodd" />
+                    </svg>
+                  </span>
+                </button>
+                
+                {showTenantDropdown && (
+                  <div className="absolute z-10 mt-1 w-full bg-white shadow-lg rounded-md border border-gray-200">
+                    <div className="p-2">
+                      <input
+                        type="text"
+                        className="w-full border border-gray-300 rounded-md py-2 px-3 text-sm focus:outline-none focus:ring-1 focus:ring-blue-500"
+                        placeholder="Search company..."
+                        value={searchTerm}
+                        onChange={(e) => setSearchTerm(e.target.value)}
+                      />
+                    </div>
+                    <ul className="py-1 max-h-60 overflow-auto">
+                      {filteredTenants.map((tenant) => (
+                        <li key={tenant.id}>
+                          <button
+                            type="button"
+                            className="w-full text-left px-4 py-2 text-sm hover:bg-blue-50 flex items-center"
+                            onClick={() => selectTenant(tenant.id)}
+                          >
+                            <div className="w-6 h-6 flex items-center justify-center bg-blue-100 rounded-full mr-3">
+                              <span className="text-blue-800 text-xs font-medium">
+                                {tenant.name.charAt(0)}
+                              </span>
+                            </div>
+                            {tenant.name}
+                          </button>
+                        </li>
+                      ))}
+                      {filteredTenants.length === 0 && (
+                        <li className="px-4 py-2 text-sm text-gray-500">No companies found</li>
+                      )}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            </div>
+            
+            {/* Email Input */}
             <div>
               <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-2">
                 Email Address
